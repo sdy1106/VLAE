@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="2b087a4d-979f-4c55-a6ca-0e954001f011" name="VLAE" url="http://ml.cs.tsinghua.edu.cn">
+        <fileTransfer host="ml.cs.tsinghua.edu.cn" port="4709" rootFolder="/home/danyang" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="4709" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
