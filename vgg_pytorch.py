@@ -53,7 +53,7 @@ class multi_VGG(nn.Module):
         char_features = self.char_classifier(features)
         font = self.font_last_fc(font_features)
         char = self.char_last_fc(char_features)
-        return features , font_features , char_features , font , char
+        return features, font_features, char_features, font, char
 
     def _initialize_weights(self):
         for m in self.modules():

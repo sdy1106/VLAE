@@ -17,16 +17,16 @@ import utils
 from multi_gpu import FLAGS
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--batch_size', type=int, default=300)
-parser.add_argument('--epoches', type=int, default=300)
+parser.add_argument('--batch_size', type=int, default=400)
+parser.add_argument('--epoches', type=int, default=2000)
 parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--code', action='store_true', default=False, help='if use , it will use code,\
                                                                      else , it will use onehot')
-parser.add_argument('--result_path', type=str, default='./result/vae-sogou')
-parser.add_argument('--dataset', type=str, default='sogou')
-parser.add_argument('--char_num', type=int, default=20, help='The number of characters')
-parser.add_argument('--sample_num', type=int, default=1000, help='the number of each character sampling')
-parser.add_argument('--one_shot', action='store_true', default=False, help='if false , combine the train and test ')
+parser.add_argument('--result_path', type=str, default='./result/iwae-64')
+parser.add_argument('--dataset', type=str, default='standard')
+parser.add_argument('--char_num', type=int, default=62, help='The number of characters')
+parser.add_argument('--sample_num', type=int, default=200, help='the number of each character sampling')
+parser.add_argument('--one_shot', action='store_true', default=True, help='if false , combine the train and test ')
 parser.add_argument('--tv_alpha' , type=float , default=0.0 , help='the coefficient of tv loss')
 args = parser.parse_args()
 
@@ -34,7 +34,7 @@ print ('gpus:', FLAGS.num_gpus)
 print (args)
 
 # Define model parameters
-n_z = 100
+n_z = 50
 n_y = args.char_num
 sample_num = args.sample_num
 n_code = n_y
@@ -43,9 +43,10 @@ n_x = 4096
 n_xl = 64
 ngf = 128
 train_test_rate = [0.8 , 0.2]
-display_each_character = int(train_test_rate[1] * 100)
+display_each_character = int(train_test_rate[1] * sample_num)
 test_ny = 10
 print_threhold = 0.5
+
 
 
 def conv_cond_concat(x, y):
@@ -164,10 +165,6 @@ if __name__ == "__main__":
             x_train, x_test, t_train, t_test = dataset.hccr_onehot_casia_offline_64(n_y, sample_num)
             t_train, t_test = \
                 utils.to_onehot(t_train, n_y), utils.to_onehot(t_test, n_y)
-        elif args.dataset == 'sogou':
-            x_train, x_test, t_train, t_test = dataset.hccr_onehot_sogou_64(n_y ,sample_num)
-            t_train, t_test = \
-                utils.to_onehot(t_train, n_y), utils.to_onehot(t_test, n_y)
         elif args.dataset == 'fusion':
             x_train_s, x_test_s, t_train_s, t_test_s = dataset.hccr_onehot_standard_64(ny, sample_num, train_test_rate = train_test_rate)
             t_train_s, t_test_s = utils.to_onehot(t_train_s, n_y), utils.to_onehot(t_test_s, n_y)
@@ -213,28 +210,28 @@ if __name__ == "__main__":
         x_train = np.concatenate((x_train, x_test), axis=1)
         t_train = np.concatenate((t_train, t_test), axis=1)
 
-    # x_oneshot_test = np.zeros((display_each_character, n_xl, n_xl, n_channels))
-    # t_oneshot_test = np.zeros((display_each_character, n_code))
-    # t_oneshot_gen_test = t_test[:test_ny, 0, :]
-    # for i in range(display_each_character):
-    #     char_index = random.randint(0, n_y - 1)
-    #     x_oneshot_test[i, :, :, 0] = x_test[char_index, i, :, :]
-    #     t_oneshot_test[i, :] = t_test[char_index, i, :]
-    #
-    # x_train_recon = x_train[:, :display_each_character, :, :]
-    # t_train_recon = t_train[:, :display_each_character, :]
-    # x_train_interp = np.concatenate((x_train[:test_ny, 0, :, :], x_train[:test_ny, 3, :, :]), axis=1)
-    # t_train_interp = np.concatenate((t_train[:test_ny, 0, :], t_train[:test_ny, 3, :]), axis=1)
-    # x_test = x_test[:test_ny, :display_each_character, :, :]
-    # t_test = t_test[:test_ny, :display_each_character, :]
-    # # x_train = np.reshape(x_train, [-1, n_xl, n_xl, n_channels])
-    # # t_train = np.reshape(t_train, [-1, n_code])
-    # x_test = np.reshape(x_test, [-1, n_xl, n_xl, n_channels])
-    # t_test = np.reshape(t_test, [-1, n_code])
-    # x_train_interp = np.reshape(x_train_interp, [-1, n_x])
-    # t_train_interp = np.reshape(t_train_interp, [-1, n_code])
-    # x_train_recon = np.reshape(x_train_recon, [-1, n_xl, n_xl, n_channels])
-    # t_train_recon = np.reshape(t_train_recon, [-1, n_code])
+    x_oneshot_test = np.zeros((display_each_character, n_xl, n_xl, n_channels))
+    t_oneshot_test = np.zeros((display_each_character, n_code))
+    t_oneshot_gen_test = t_test[:test_ny, 0, :]
+    for i in range(display_each_character):
+        char_index = random.randint(0, n_y - 1)
+        x_oneshot_test[i, :, :, 0] = x_test[char_index, i, :, :]
+        t_oneshot_test[i, :] = t_test[char_index, i, :]
+
+    x_train_recon = x_train[:, :display_each_character, :, :]
+    t_train_recon = t_train[:, :display_each_character, :]
+    x_train_interp = np.concatenate((x_train[:test_ny, 0, :, :], x_train[:test_ny, 3, :, :]), axis=1)
+    t_train_interp = np.concatenate((t_train[:test_ny, 0, :], t_train[:test_ny, 3, :]), axis=1)
+    x_test = x_test[:test_ny, :display_each_character, :, :]
+    t_test = t_test[:test_ny, :display_each_character, :]
+    # x_train = np.reshape(x_train, [-1, n_xl, n_xl, n_channels])
+    # t_train = np.reshape(t_train, [-1, n_code])
+    x_test = np.reshape(x_test, [-1, n_xl, n_xl, n_channels])
+    t_test = np.reshape(t_test, [-1, n_code])
+    x_train_interp = np.reshape(x_train_interp, [-1, n_x])
+    t_train_interp = np.reshape(t_train_interp, [-1, n_code])
+    x_train_recon = np.reshape(x_train_recon, [-1, n_xl, n_xl, n_channels])
+    t_train_recon = np.reshape(t_train_recon, [-1, n_code])
 
     # Define training/evaluation parameters
     epoches = args.epoches
@@ -260,8 +257,12 @@ if __name__ == "__main__":
     x_bin = tf.cast(tf.less(tf.random_uniform(tf.shape(x_orig), 0, 1), x_orig),
                     tf.int32)
     x = tf.placeholder(tf.int32, shape=[None, n_x], name='x')
+    x_source = tf.placeholder(tf.int32, shape=[None, n_x], name='x_source')
+    oneshot_z = tf.placeholder(tf.float32, shape=(1, test_ny, n_z), name='oneshot_z')
+    interp_z = tf.placeholder(tf.float32, shape=(1, gen_size, n_z), name='oneshot_z')
     tf_ny = tf.placeholder(tf.int32, name='ny')
     code = tf.placeholder(tf.float32, shape=(None, n_code), name='code')
+    code_source = tf.placeholder(tf.float32, shape=(None, n_code), name='code_source')
     learning_rate_ph = tf.placeholder(tf.float32, shape=[], name='lr')
     optimizer = tf.train.AdamOptimizer(learning_rate_ph, beta1=0.5)
 
@@ -269,10 +270,14 @@ if __name__ == "__main__":
     def build_tower_graph(x, id_):
         tower_x_orig = x_orig[id_ * tf.shape(x_orig)[0] // FLAGS.num_gpus:
         (id_ + 1) * tf.shape(x_orig)[0] // FLAGS.num_gpus]
+        tower_x_source = x_source[id_ * tf.shape(x_orig)[0] // FLAGS.num_gpus:
+        (id_ + 1) * tf.shape(x_source)[0] // FLAGS.num_gpus]
         tower_x = x[id_ * tf.shape(x)[0] // FLAGS.num_gpus:
         (id_ + 1) * tf.shape(x)[0] // FLAGS.num_gpus]
         tower_code = code[id_ * tf.shape(code)[0] // FLAGS.num_gpus:
         (id_ + 1) * tf.shape(code)[0] // FLAGS.num_gpus]
+        tower_code_source = code_source[id_ * tf.shape(code_source)[0] // FLAGS.num_gpus:
+        (id_ + 1) * tf.shape(code_source)[0] // FLAGS.num_gpus]
         n = tf.shape(tower_x)[0]
         x_obs = tf.tile(tf.expand_dims(tower_x, 0), [1, 1, 1])
 
@@ -281,16 +286,20 @@ if __name__ == "__main__":
             log_pz, log_px_z = decoder.local_log_prob(['z', 'x'])
             return log_pz + log_px_z
 
-        encoder, _ = q_net(None, tower_x, tower_code, is_training)
+        encoder, _ = q_net(None, tower_x_source, tower_code_source, is_training)
         qz_samples, log_qz = encoder.query('z', outputs=True,
                                       local_log_prob=True)
 
+        _ , train_x_recon = vae({'z':qz_samples} , n , tower_code , is_training)
+        train_x_recon = tf.reshape(train_x_recon , [ -1 , n_xl , n_xl , 1])
+        tv_loss = (tf.nn.l2_loss(train_x_recon[:, 1:, :, :] - train_x_recon[:, :(n_xl - 1), :, :]) / n_xl
+                   + tf.nn.l2_loss(train_x_recon[:, :, 1:, :] - train_x_recon[:, :, :(n_xl - 1), :]) / n_xl) * args.tv_alpha
 
         lower_bound = tf.reduce_mean(
             zs.iwae(log_joint, {'x': x_obs}, {'z': [qz_samples, log_qz]}, axis=0))
 
-        grads = optimizer.compute_gradients(-lower_bound)
-        return grads, lower_bound
+        grads = optimizer.compute_gradients(-lower_bound + tv_loss)
+        return grads, [lower_bound,tv_loss]
 
 
     tower_losses = []
@@ -299,9 +308,9 @@ if __name__ == "__main__":
         with tf.device('/gpu:%d' % i):
             with tf.name_scope('tower_%d' % i):
                 grads, losses = build_tower_graph(x, i)
-                tower_losses.append([losses])
+                tower_losses.append(losses)
                 tower_grads.append(grads)
-    lower_bound = multi_gpu.average_losses(tower_losses)
+    lower_bound , tv_loss = multi_gpu.average_losses(tower_losses)
     grads = multi_gpu.average_gradients(tower_grads)
     infer = optimizer.apply_gradients(grads)
 
@@ -313,19 +322,19 @@ if __name__ == "__main__":
     _, eval_x_recon = vae({'z': eval_z_gen},
                                  tf.shape(x)[0], code, is_training)
     eval_x_recon = tf.reshape(tf.sigmoid(eval_x_recon), [-1, n_xl, n_xl, n_channels])
-    # # eval disentangle
-    # disentange_z = tf.placeholder(tf.float32, shape=(None, n_z), name='disentangle_z')
-    # _, disentangle_x = vae({'z': disentange_z}, recon_size,
-    #                               code, is_training)
-    # disentangle_x = tf.reshape(tf.sigmoid(disentangle_x), [-1, n_xl, n_xl, n_channels])
-    # # eval one-shot generation
-    # _, eval_z_oneshot = q_net(None, x, code, is_training)
-    # _, eval_x_oneshot = vae({'z': oneshot_z}, tf_ny, code, is_training)
-    # eval_x_oneshot = tf.reshape(tf.sigmoid(eval_x_oneshot), [-1, n_xl, n_xl, n_channels])
-    #
-    # # eval interpolation
-    # _, eval_x_interp = vae({'z': interp_z}, gen_size, code, is_training)
-    # eval_x_interp = tf.reshape(tf.sigmoid(eval_x_interp), [-1, n_xl, n_xl, n_channels])
+    # eval disentangle
+    disentange_z = tf.placeholder(tf.float32, shape=(None, n_z), name='disentangle_z')
+    _, disentangle_x = vae({'z': disentange_z}, recon_size,
+                                  code, is_training)
+    disentangle_x = tf.reshape(tf.sigmoid(disentangle_x), [-1, n_xl, n_xl, n_channels])
+    # eval one-shot generation
+    _, eval_z_oneshot = q_net(None, x, code, is_training)
+    _, eval_x_oneshot = vae({'z': oneshot_z}, tf_ny, code, is_training)
+    eval_x_oneshot = tf.reshape(tf.sigmoid(eval_x_oneshot), [-1, n_xl, n_xl, n_channels])
+
+    # eval interpolation
+    _, eval_x_interp = vae({'z': interp_z}, gen_size, code, is_training)
+    eval_x_interp = tf.reshape(tf.sigmoid(eval_x_interp), [-1, n_xl, n_xl, n_channels])
     params = tf.trainable_variables()
 
     for i in params:
@@ -350,47 +359,48 @@ if __name__ == "__main__":
             if epoch % anneal_lr_freq == 0:
                 learning_rate *= anneal_lr_rate
 
-            print x_train.shape , t_train.shape
-            # x_train_source, t_train_source = utils.random_select(x_train.reshape(n_y, -1, n_x), t_train)
-            # x_train_source = np.tile(x_train_source,(n_y,1))
-            # t_train_source = np.tile(t_train_source,(n_y,1))
-            # x_train_tmp, t_train_tmp = utils.shuffle(
-            #     np.concatenate((x_train.reshape(-1, n_x, 1), x_train_source.reshape(-1, n_x, 1)), axis=2),
-            #     np.concatenate((t_train.reshape(-1, n_code, 1), t_train_source.reshape(-1, n_code, 1)), axis=2))
-            # x_train = x_train_tmp[:, :, 0].reshape(-1, n_x)
-            # t_train_shuffle = t_train_tmp[:, :, 0].reshape(-1, n_code)
-            # x_train_source = x_train_tmp[:, :, 1].reshape(-1, n_x)
-            # t_train_source = t_train_tmp[:, :, 1].reshape(-1, n_code)
-            x_train = np.reshape(x_train, [-1, n_x])
-            t_train = np.reshape(t_train, [-1, n_code])
-            x_train, t_train = utils.shuffle(x_train , t_train)
+            x_train_source, t_train_source = utils.random_select(x_train.reshape(n_y, -1, n_x), t_train)
+            x_train_source = np.tile(x_train_source,(n_y,1))
+            t_train_source = np.tile(t_train_source,(n_y,1))
+            x_train_tmp, t_train_tmp = utils.shuffle(
+                np.concatenate((x_train.reshape(-1, n_x, 1), x_train_source.reshape(-1, n_x, 1)), axis=2),
+                np.concatenate((t_train.reshape(-1, n_code, 1), t_train_source.reshape(-1, n_code, 1)), axis=2))
+            x_train_shuffle = x_train_tmp[:, :, 0].reshape(-1, n_x)
+            t_train_shuffle = t_train_tmp[:, :, 0].reshape(-1, n_code)
+            x_train_source = x_train_tmp[:, :, 1].reshape(-1, n_x)
+            t_train_source = t_train_tmp[:, :, 1].reshape(-1, n_code)
+            # x_train = np.reshape(x_train, [-1, n_xl, n_xl, 1])
             lower_bounds = []
+            tv_losses = []
             time_train = -time.time()
             for t in range(train_iters):
                 iter = t + 1
-                x_batch = x_train[t * train_batch_size:(t + 1) * train_batch_size]
+                x_batch = x_train_shuffle[t * train_batch_size:(t + 1) * train_batch_size]
                 x_batch_bin = sess.run(x_bin, feed_dict={x_orig: x_batch})
-                t_batch = t_train[t * train_batch_size:(t + 1) * train_batch_size]
+                t_batch = t_train_shuffle[t * train_batch_size:(t + 1) * train_batch_size]
+                x_batch_source = x_train_source[t * train_batch_size:(t + 1) * train_batch_size]
+                x_batch_source_bin = sess.run(x_bin, feed_dict={x_orig:x_batch_source})
+                t_batch_source = t_train_source[t * train_batch_size:(t + 1) * train_batch_size]
 
-                _, lb = sess.run([infer, lower_bound],
+                _, lb ,  tv = sess.run([infer, lower_bound , tv_loss],
                                           feed_dict={x_orig: x_batch, x: x_batch_bin, code: t_batch,
+                                                    x_source: x_batch_source_bin, code_source: t_batch_source,
                                                     learning_rate_ph: learning_rate, is_training: True})
                 lower_bounds.append(lb)
+                tv_losses.append(tv)
 
                 if iter % print_freq == 0:
                     print('Epoch={} Iter={} ({:.3f}s/iter): '
-                          'Lower Bound={} '.
+                          'Lower Bound={} , Tv loss={}'.
                           format(epoch, iter,
                                  (time.time() + time_train) / print_freq,
-                                 np.mean(lower_bounds)))
+                                 np.mean(lower_bounds) , np.mean(tv_losses)))
                     lower_bounds = []
+                    tv_losses = []
 
                 if iter % test_freq == 0:
 
                     time_test = -time.time()
-
-                    # train gen
-                    t_test = np.reshape(t_test , (-1 , n_code))
                     t_batch = t_test[:gen_size]
                     gen_images = sess.run(eval_x_gen,
                                           feed_dict={is_training: False,
@@ -400,112 +410,112 @@ if __name__ == "__main__":
                     utils.save_image_collections(gen_images, name, shape=(test_ny, display_each_character),
                                                  scale_each=True)
 
-                    # # train reconstruction
-                    # x_batch = x_train_recon[:recon_size].reshape(-1, n_x)
-                    # x_batch_bin = sess.run(x_bin, feed_dict={x_orig: x_batch})
-                    # t_batch = t_train_recon[:recon_size]
-                    # eval_zs, recon_images = \
-                    #     sess.run([eval_z_gen.tensor, eval_x_recon],
-                    #              feed_dict={x: x_batch_bin, is_training: False, code: t_batch})
-                    # name = "train_recon_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y,
-                    #                                                             epoch, iter)
-                    # recon_images = (recon_images > print_threhold).astype(np.float32)
-                    # name = os.path.join(
-                    #     result_path, name)
-                    # utils.save_contrast_image_collections(x_batch.reshape(-1, n_xl, n_xl, n_channels), recon_images,
-                    #                                       name, shape=(test_ny, display_each_character * 2),
-                    #                                       scale_each=True)
-                    # # # train interpolation
-                    # x_batch_bin = sess.run(x_bin, feed_dict={x_orig: x_train_interp})
-                    # t_batch = t_train_interp
-                    # eval_zs, _ = \
-                    #     sess.run([eval_z_gen.tensor, eval_x_recon],
-                    #              feed_dict={x: x_batch_bin, is_training: False, code: t_batch})
-                    # epsilon = np.linspace(0, 1, display_each_character)
-                    # eval_zs_interp = np.array(
-                    #     [eps * eval_zs[0, 2 * i, :] + (1 - eps) * eval_zs[0, 2 * i + 1, :] for i in range(test_ny) for eps
-                    #      in epsilon]).reshape(1, -1, n_z)
-                    # t_batch = np.tile([t_batch[2 * i, :] for i in range(test_ny)], (1, display_each_character)).reshape(-1,
-                    #                                                                                                 n_code)
-                    # recon_images = \
-                    #     sess.run(eval_x_interp, feed_dict={interp_z: eval_zs_interp, is_training: False, code: t_batch})
-                    # recon_images = (recon_images > print_threhold).astype(np.float32)
-                    # name = "interp_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y, epoch, iter)
-                    # name = os.path.join(result_path, name)
-                    # utils.save_image_collections(recon_images, name, shape=(test_ny, display_each_character),
-                    #                              scale_each=True)
-                    #
-                    # # test reconstruction
-                    # x_batch = x_test[:recon_size].reshape(-1, n_x)
-                    # x_batch_bin = sess.run(x_bin, feed_dict={x_orig: x_batch})
-                    # t_batch = t_test[:recon_size]
-                    # eval_zs, recon_images = \
-                    #     sess.run([eval_z_gen.tensor, eval_x_recon],
-                    #              feed_dict={x: x_batch_bin, is_training: False, code: t_batch})
-                    # recon_images = (recon_images > print_threhold).astype(np.float32)
-                    # name = "test_recon_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y,
-                    #                                                              epoch, iter)
-                    # name = os.path.join(
-                    #     result_path, name)
-                    # utils.save_contrast_image_collections(x_batch.reshape(-1, n_xl, n_xl, n_channels), recon_images,
-                    #                                       name, shape=(test_ny, display_each_character * 2),
-                    #                                       scale_each=True)
-                    #
-                    # # one-shot generation
-                    # x_batch = x_oneshot_test.reshape(-1, n_x)  # display_number*nxl*nxl*nchannel
-                    # x_batch_bin = sess.run(x_bin, feed_dict={x_orig: x_batch})
-                    # t_batch = t_oneshot_test
-                    # display_x_oneshot = np.zeros((display_each_character,  test_ny+ 1, n_xl, n_xl, n_channels))
-                    #
-                    # eval_zs_oneshot = sess.run(eval_z_oneshot.tensor,
-                    #                            feed_dict={x: x_batch_bin, is_training: False, code: t_batch})
-                    # # print (np.shape(eval_zs_oneshot)) #test_ny*nz
-                    # for i in range(display_each_character):
-                    #     display_x_oneshot[i, 0, :, :, :] = x_batch[i, :].reshape(-1, n_xl, n_xl, n_channels)
-                    #     tmp_z = np.zeros((1, test_ny, n_z))
-                    #     for j in range(test_ny):
-                    #         # print (np.shape(tmp_z) ,np.shape(eval_zs_oneshot))
-                    #         tmp_z[0, j, :] = eval_zs_oneshot[0, i, :]
-                    #     # _, eval_x_oneshot = decoder({'z': oneshot_z}, tf_ny, code, is_training)
-                    #     #print tmp_z.shape , t_oneshot_gen_test.shape
-                    #     tmp_x = sess.run(eval_x_oneshot,
-                    #                      feed_dict={oneshot_z: tmp_z, tf_ny: test_ny, code: t_oneshot_gen_test,
-                    #                                 is_training: False})
-                    #     # print (np.shape(tmp_x))
-                    #     display_x_oneshot[i, 1:, :, :, :] = tmp_x
-                    # display_x_oneshot = np.reshape(display_x_oneshot, (-1, n_xl, n_xl, n_channels))
-                    #
-                    # ##TODO
-                    # display_x_oneshot = (display_x_oneshot > print_threhold).astype(np.float32)
-                    #
-                    # name = "oneshot_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y,
-                    #                                                           epoch, iter)
-                    # name = os.path.join(
-                    #     result_path, name)
-                    #
-                    # utils.save_image_collections(display_x_oneshot,
-                    #                              name, shape=(display_each_character, test_ny + 1),
-                    #                              scale_each=True)
-                    #
-                    # # disentangle
-                    # t_batch = t_test[:recon_size]
-                    # z_each = np.random.normal(size=(display_each_character, n_z))
-                    # # print (z_each.shape)
-                    # z_batch = np.zeros((test_ny, display_each_character, n_z))
-                    # # print (z_batch.shape)
-                    # for i in range(test_ny):
-                    #     z_batch[i, :, :] = z_each
-                    # z_batch = np.reshape(z_batch, (-1, n_z))
-                    # eval_disentange_x = \
-                    #     sess.run(disentangle_x,
-                    #              feed_dict={disentange_z: z_batch, is_training: False, code: t_batch})
-                    # name = "disentangle_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y,
-                    #                                                               epoch, iter)
-                    # name = os.path.join(
-                    #     result_path, name)
-                    # utils.save_image_collections(eval_disentange_x,
-                    #                              name, shape=(test_ny, display_each_character),
-                    #                              scale_each=True)
+                    # train reconstruction
+                    x_batch = x_train_recon[:recon_size].reshape(-1, n_x)
+                    x_batch_bin = sess.run(x_bin, feed_dict={x_orig: x_batch})
+                    t_batch = t_train_recon[:recon_size]
+                    eval_zs, recon_images = \
+                        sess.run([eval_z_gen.tensor, eval_x_recon],
+                                 feed_dict={x: x_batch_bin, is_training: False, code: t_batch})
+                    name = "train_recon_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y,
+                                                                                epoch, iter)
+                    recon_images = (recon_images > print_threhold).astype(np.float32)
+                    name = os.path.join(
+                        result_path, name)
+                    utils.save_contrast_image_collections(x_batch.reshape(-1, n_xl, n_xl, n_channels), recon_images,
+                                                          name, shape=(test_ny, display_each_character * 2),
+                                                          scale_each=True)
+                    # # train interpolation
+                    x_batch_bin = sess.run(x_bin, feed_dict={x_orig: x_train_interp})
+                    t_batch = t_train_interp
+                    eval_zs, _ = \
+                        sess.run([eval_z_gen.tensor, eval_x_recon],
+                                 feed_dict={x: x_batch_bin, is_training: False, code: t_batch})
+                    epsilon = np.linspace(0, 1, display_each_character)
+                    eval_zs_interp = np.array(
+                        [eps * eval_zs[0, 2 * i, :] + (1 - eps) * eval_zs[0, 2 * i + 1, :] for i in range(test_ny) for eps
+                         in epsilon]).reshape(1, -1, n_z)
+                    t_batch = np.tile([t_batch[2 * i, :] for i in range(test_ny)], (1, display_each_character)).reshape(-1,
+                                                                                                                    n_code)
+                    recon_images = \
+                        sess.run(eval_x_interp, feed_dict={interp_z: eval_zs_interp, is_training: False, code: t_batch})
+                    recon_images = (recon_images > print_threhold).astype(np.float32)
+                    name = "interp_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y, epoch, iter)
+                    name = os.path.join(result_path, name)
+                    utils.save_image_collections(recon_images, name, shape=(test_ny, display_each_character),
+                                                 scale_each=True)
+
+                    # test reconstruction
+                    x_batch = x_test[:recon_size].reshape(-1, n_x)
+                    x_batch_bin = sess.run(x_bin, feed_dict={x_orig: x_batch})
+                    t_batch = t_test[:recon_size]
+                    eval_zs, recon_images = \
+                        sess.run([eval_z_gen.tensor, eval_x_recon],
+                                 feed_dict={x: x_batch_bin, is_training: False, code: t_batch})
+                    recon_images = (recon_images > print_threhold).astype(np.float32)
+                    name = "test_recon_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y,
+                                                                                 epoch, iter)
+                    name = os.path.join(
+                        result_path, name)
+                    utils.save_contrast_image_collections(x_batch.reshape(-1, n_xl, n_xl, n_channels), recon_images,
+                                                          name, shape=(test_ny, display_each_character * 2),
+                                                          scale_each=True)
+
+                    # one-shot generation
+                    x_batch = x_oneshot_test.reshape(-1, n_x)  # display_number*nxl*nxl*nchannel
+                    x_batch_bin = sess.run(x_bin, feed_dict={x_orig: x_batch})
+                    t_batch = t_oneshot_test
+                    display_x_oneshot = np.zeros((display_each_character,  test_ny+ 1, n_xl, n_xl, n_channels))
+
+                    eval_zs_oneshot = sess.run(eval_z_oneshot.tensor,
+                                               feed_dict={x: x_batch_bin, is_training: False, code: t_batch})
+                    # print (np.shape(eval_zs_oneshot)) #test_ny*nz
+                    for i in range(display_each_character):
+                        display_x_oneshot[i, 0, :, :, :] = x_batch[i, :].reshape(-1, n_xl, n_xl, n_channels)
+                        tmp_z = np.zeros((1, test_ny, n_z))
+                        for j in range(test_ny):
+                            # print (np.shape(tmp_z) ,np.shape(eval_zs_oneshot))
+                            tmp_z[0, j, :] = eval_zs_oneshot[0, i, :]
+                        # _, eval_x_oneshot = decoder({'z': oneshot_z}, tf_ny, code, is_training)
+                        #print tmp_z.shape , t_oneshot_gen_test.shape
+                        tmp_x = sess.run(eval_x_oneshot,
+                                         feed_dict={oneshot_z: tmp_z, tf_ny: test_ny, code: t_oneshot_gen_test,
+                                                    is_training: False})
+                        # print (np.shape(tmp_x))
+                        display_x_oneshot[i, 1:, :, :, :] = tmp_x
+                    display_x_oneshot = np.reshape(display_x_oneshot, (-1, n_xl, n_xl, n_channels))
+
+                    ##TODO
+                    display_x_oneshot = (display_x_oneshot > print_threhold).astype(np.float32)
+
+                    name = "oneshot_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y,
+                                                                              epoch, iter)
+                    name = os.path.join(
+                        result_path, name)
+
+                    utils.save_image_collections(display_x_oneshot,
+                                                 name, shape=(display_each_character, test_ny + 1),
+                                                 scale_each=True)
+
+                    # disentangle
+                    t_batch = t_test[:recon_size]
+                    z_each = np.random.normal(size=(display_each_character, n_z))
+                    # print (z_each.shape)
+                    z_batch = np.zeros((test_ny, display_each_character, n_z))
+                    # print (z_batch.shape)
+                    for i in range(test_ny):
+                        z_batch[i, :, :] = z_each
+                    z_batch = np.reshape(z_batch, (-1, n_z))
+                    eval_disentange_x = \
+                        sess.run(disentangle_x,
+                                 feed_dict={disentange_z: z_batch, is_training: False, code: t_batch})
+                    name = "disentangle_{}/iwae_hccr.epoch.{}.iter.{}.png".format(n_y,
+                                                                                  epoch, iter)
+                    name = os.path.join(
+                        result_path, name)
+                    utils.save_image_collections(eval_disentange_x,
+                                                 name, shape=(test_ny, display_each_character),
+                                                 scale_each=True)
 
                     time_test += time.time()
 

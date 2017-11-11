@@ -42,7 +42,7 @@ n_x = 4096
 n_xl = 64
 ngf = 128
 train_test_rate = [0.8 , 0.2]
-display_each_character = 5#int(train_test_rate[1] * sample_num)
+display_each_character = 5 #int(train_test_rate[1] * sample_num)
 
 test_ny = 5
 
@@ -201,9 +201,9 @@ if __name__ == "__main__":
     display2_index = [0 , 34]
     display3_index = [3]
 
-    poem_index= poem3_index
-    name_index = name3_index
-    display_index = display3_index
+    poem_index= poem1_index
+    name_index = name1_index
+    display_index = display1_index
 
     name_len = len(name_index)
     poem_len = len(poem_index)
@@ -407,7 +407,7 @@ if __name__ == "__main__":
             x_batch_bin = sess.run(x_bin , feed_dict={x_orig:x_batch})
             x_batch_bin = x_batch_bin.reshape(display_len , name_len , n_x)
             t_batch = t_oneshot_poem
-            display_x_oneshot = np.zeros((display_len, poem_len + name_len , n_xl , n_xl , n_channels))
+            display_x_oneshot = np.zeros((display_len*2, poem_len + name_len , n_xl , n_xl , n_channels))
 
             #print ('######', np.shape(x_batch_bin), np.shape(t_batch))
             for i,index in enumerate(display_index):
@@ -423,8 +423,10 @@ if __name__ == "__main__":
                                             is_training:False})
                 name = np.ones((name_len , n_xl , n_xl , n_channels))
                 name = x_batch_bin[i].reshape(-1 , n_xl , n_xl , n_channels)
-                display_x_oneshot[i , :name_len , : , : , :] = name
-                display_x_oneshot[i , name_len: , : , : , :] = tmp_x.reshape(-1 , n_xl , n_xl , n_channels)
+                display_x_oneshot[i*2 , :name_len , : , : , :] = name
+                display_x_oneshot[i*2 , name_len: , : , : , :] = tmp_x.reshape(-1 , n_xl , n_xl , n_channels)
+                display_x_oneshot[2*i+1, :name_len, :, :, :] = name
+                display_x_oneshot[2*i+1, name_len:,:, :, :] = oneshot_ground_test[:, index].reshape(-1, n_xl, n_xl, n_channels)
 
             display_x_oneshot = np.reshape(display_x_oneshot, (-1, n_xl, n_xl, n_channels))
             name = "peom_{}/iwae_hccr.epoch.{}.poem.{}.png".format(n_y,
@@ -433,6 +435,6 @@ if __name__ == "__main__":
                 result_path, name)
             display_x_oneshot = (display_x_oneshot > print_threhold).astype(np.float32)
             utils.save_image_collections(display_x_oneshot,
-                                         name, shape=(display_len, poem_len + name_len),
+                                         name, shape=(2*display_len, poem_len + name_len),
                                          scale_each=True)
 

@@ -81,7 +81,25 @@ def delete_all_zero_columns(C_ ):
 
     return train_X ,  val_X ,  test_X , train_Y , val_Y , test_Y
 
+def hccr_onehot_symbos_64(ny, sample_num = 100, data_dir ='/home/danyang/mfs/data/hccr', train_test_rate=[0.8, 0.2]):
+    X = np.load(os.path.join(data_dir , 'image_62x200x64x64_symbol.npy'))
+    X = X[:ny , :sample_num , : , :] #ny*1000*64*64
+    Y = np.ones((ny,sample_num) , dtype=np.int)
+    for i in range(ny):
+        Y[i,:] = np.ones(sample_num)*i #ny*1000
 
+    assert np.shape(X)[1] == np.shape(Y)[1]
+    total_num = np.shape(X)[1]
+    train_num = int(np.shape(X)[1] * train_test_rate[0])
+    test_num = int(np.shape(X)[1] * train_test_rate[1])
+
+    train_X = X[:,0:train_num,: , :]
+    train_Y = Y[:,0:train_num]
+
+    test_X = X[:,train_num: , : , :]
+    test_Y = Y[:,train_num: ]
+
+    return train_X ,  test_X , train_Y , test_Y
 
 
 def hccr_onehot_standard_64(ny, sample_num = 100, data_dir ='/home/danyang/mfs/data/hccr', train_test_rate=[0.8, 0.2]):
